@@ -1,5 +1,7 @@
 # f2png — Rust LSB Stego (CLI + GUI)
 
+[![CI](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml/badge.svg)](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml)
+
 Rust workspace que substitui a versao Python original, com foco em performance, cifra moderna e app nativa.
 
 - Docs PT: `docs/USAGE.pt.md`
@@ -60,3 +62,11 @@ Top progress panel and bottom logs. Container mode supports split/join.
 ```
 cargo doc --workspace --open
 ```
+
+## Contributing
+
+See `CONTRIBUTING.md` and `SECURITY.md`.
+
+## License
+
+MIT. See `LICENSE`.
