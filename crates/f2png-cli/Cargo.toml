@@ -1,0 +1,15 @@
+[package]
+name = "f2png-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+f2png-core = { path = "../f2png-core" }
+tempfile.workspace = true
+image.workspace = true
+
+[dev-dependencies]
+assert_cmd = "2"
+tempfile.workspace = true

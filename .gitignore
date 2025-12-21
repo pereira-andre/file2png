@@ -1,0 +1,8 @@
+/target/
+/output/
+/input/
+.DS_Store
+*.log
+commands.txt
+.vscode/
+.idea/

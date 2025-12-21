@@ -1,0 +1,24 @@
+[workspace]
+members = [
+  "crates/f2png-core",
+  "crates/f2png-cli",
+  "crates/f2png-gui",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1.0"
+argon2 = "0.5"
+chacha20poly1305 = { version = "0.10", features = ["std", "stream"] }
+clap = { version = "4.5", features = ["derive"] }
+image = "0.25"
+rand = "0.8"
+rayon = "1.10"
+sha2 = "0.10"
+thiserror = "1.0"
+zeroize = "1.8"
+tempfile = "3"
