@@ -38,6 +38,21 @@ fn format_eta(secs: f64) -> String {
     }
 }
 
+fn section_frame(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+    egui::Frame::none()
+        .fill(egui::Color32::from_rgb(28, 30, 38))
+        .rounding(egui::Rounding::same(6.0))
+        .inner_margin(egui::Margin::same(12.0))
+        .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(45, 48, 58)))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading(title);
+            });
+            ui.add_space(6.0);
+            add_contents(ui);
+        });
+}
+
 pub struct F2PngApp {
     tab: Tab,
     cover: Option<PathBuf>,
@@ -95,7 +110,31 @@ enum UiMessage {
 }
 
 impl F2PngApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let mut style = (*cc.egui_ctx.style()).clone();
+        style.spacing.item_spacing = egui::vec2(10.0, 8.0);
+        style.spacing.window_margin = egui::Margin::same(12.0);
+        style.visuals.window_rounding = egui::Rounding::same(8.0);
+        style.visuals.widgets.inactive.rounding = egui::Rounding::same(6.0);
+        style.visuals.widgets.hovered.rounding = egui::Rounding::same(6.0);
+        style.visuals.widgets.active.rounding = egui::Rounding::same(6.0);
+        style.text_styles.insert(
+            egui::TextStyle::Heading,
+            egui::FontId::new(20.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Body,
+            egui::FontId::new(15.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Button,
+            egui::FontId::new(14.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Small,
+            egui::FontId::new(12.0, egui::FontFamily::Proportional),
+        );
+        cc.egui_ctx.set_style(style);
         Self {
             tab: Tab::Embed,
             cover: None,
@@ -199,25 +238,33 @@ impl eframe::App for F2PngApp {
             self.rx = Some(rx_owned);
         }
 
-        egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.selectable_value(&mut self.tab, Tab::Embed, "Esconder");
-                ui.selectable_value(&mut self.tab, Tab::Reveal, "Revelar");
-                ui.selectable_value(&mut self.tab, Tab::Tests, "Testes");
-                ui.selectable_value(&mut self.tab, Tab::Help, "Ajuda");
+        egui::TopBottomPanel::top("top_bar")
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(24, 26, 32))
+                    .inner_margin(egui::Margin::symmetric(12.0, 8.0)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(egui::RichText::new("f2png").strong().size(18.0));
+                    ui.separator();
+                    ui.selectable_value(&mut self.tab, Tab::Embed, "Esconder");
+                    ui.selectable_value(&mut self.tab, Tab::Reveal, "Revelar");
+                    ui.selectable_value(&mut self.tab, Tab::Tests, "Testes");
+                    ui.selectable_value(&mut self.tab, Tab::Help, "Ajuda");
+                });
             });
-        });
 
         egui::TopBottomPanel::top("progress_panel")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(32, 35, 45)))
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(32, 35, 45))
+                    .inner_margin(egui::Margin::symmetric(12.0, 8.0)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Estado:");
-                    ui.strong(if self.busy {
-                        &self.progress_label
-                    } else {
-                        "Pronto"
-                    });
+                    ui.strong(if self.busy { &self.progress_label } else { "Pronto" });
                 });
                 ui.add(
                     egui::ProgressBar::new((self.progress_value / 100.0).clamp(0.0, 1.0))
@@ -243,7 +290,14 @@ impl eframe::App for F2PngApp {
         });
 
         egui::TopBottomPanel::bottom("log_panel")
-            .frame(egui::Frame::none().fill(egui::Color32::from_rgb(24, 26, 32)))
+            .resizable(true)
+            .default_height(220.0)
+            .min_height(140.0)
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(24, 26, 32))
+                    .inner_margin(egui::Margin::symmetric(12.0, 8.0)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.heading("Log");
@@ -255,134 +309,162 @@ impl eframe::App for F2PngApp {
                         self.log.clear();
                     }
                 });
-                egui::ScrollArea::vertical()
-                    .max_height(260.0)
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::TextEdit::multiline(&mut self.log)
-                                .desired_rows(10)
-                                .code_editor()
-                                .lock_focus(true),
-                        );
-                    });
+                let log_height = ui.available_height().max(120.0);
+                ui.add_sized(
+                    [ui.available_width(), log_height],
+                    egui::TextEdit::multiline(&mut self.log)
+                        .desired_rows(12)
+                        .code_editor()
+                        .lock_focus(true)
+                        .desired_width(f32::INFINITY),
+                );
             });
     }
 }
 
 impl F2PngApp {
     fn ui_embed(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.heading("Esconder ficheiro(s)");
-            ui.separator();
-            file_picker(ui, "Imagem de cobertura", &mut self.cover, !self.container_mode);
-            self.ui_capacity_hint(ui);
-            ui.horizontal(|ui| {
-                if ui.button("Adicionar ficheiro...").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        if !self.files.contains(&path) {
-                            self.files.push(path);
-                        }
-                    }
-                }
-                if ui.button("Adicionar vários...").clicked() {
-                    if let Some(paths) = rfd::FileDialog::new().pick_files() {
-                        for p in paths {
-                            if !self.files.contains(&p) {
-                                self.files.push(p);
+        section_frame(ui, "Esconder ficheiro(s)", |ui| {
+            ui.columns(2, |cols| {
+                let (left, right) = cols.split_at_mut(1);
+                let left = &mut left[0];
+                let right = &mut right[0];
+
+                left.vertical(|ui| {
+                    file_picker(ui, "Imagem de cobertura", &mut self.cover, !self.container_mode);
+                    self.ui_capacity_hint(ui);
+                    ui.horizontal(|ui| {
+                        if ui.button("Adicionar ficheiro...").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_file() {
+                                if !self.files.contains(&path) {
+                                    self.files.push(path);
+                                }
                             }
                         }
-                    }
-                }
-                if ui.button("Limpar lista").clicked() {
-                    self.files.clear();
-                }
-            });
-            egui::ScrollArea::vertical()
-                .max_height(100.0)
-                .show(ui, |ui| {
-                    if self.files.is_empty() {
-                        ui.label("(sem ficheiros adicionados)");
-                    } else {
-                        for p in &self.files {
-                            ui.label(p.display().to_string());
-                        }
-                    }
-                });
-            if self.container_mode && self.container_split {
-                ui.horizontal(|ui| {
-                    ui.label("Destino (pasta):");
-                    let mut out_txt = self
-                        .container_outdir
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_default();
-                    let response = ui.text_edit_singleline(&mut out_txt);
-                    if response.lost_focus() && !out_txt.is_empty() {
-                        self.container_outdir = Some(PathBuf::from(out_txt.trim()));
-                    }
-                    if ui.button("Escolher dir...").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                            self.container_outdir = Some(path);
-                        }
-                    }
-                });
-            } else {
-                ui.horizontal(|ui| {
-                    ui.label("Saída (PNG):");
-                    let mut out_txt = self
-                        .out
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_default();
-                    let response = ui.text_edit_singleline(&mut out_txt);
-                    if response.lost_focus() && !out_txt.is_empty() {
-                        self.out = Some(PathBuf::from(out_txt.trim()));
-                    }
-                    if ui.button("Escolher...").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
-                            .add_filter("PNG", &["png"])
-                            .save_file()
-                        {
-                            self.out = Some(path);
-                        }
-                    }
-                });
-            }
-            ui.horizontal(|ui| {
-                ui.label("Bits por canal:");
-                ui.add(egui::Slider::new(&mut self.bpc, 1..=4));
-            });
-            ui.checkbox(
-                &mut self.container_mode,
-                "Modo container (suporta ficheiros grandes, não usa LSB)",
-            );
-            if self.container_mode {
-                ui.checkbox(&mut self.container_split, "Dividir em partes (< limite)");
-                if self.container_split {
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.container_limit_preset, "Usar preset (GiB)");
-                        if self.container_limit_preset {
-                            egui::ComboBox::from_id_source("container_limit_gib")
-                                .selected_text(format!("{} GiB", self.container_limit_gib))
-                                .show_ui(ui, |ui| {
-                                    for v in [2u64, 4, 8, 16, 32, 64, 128] {
-                                        ui.selectable_value(&mut self.container_limit_gib, v, format!("{} GiB", v));
+                        if ui.button("Adicionar vários...").clicked() {
+                            if let Some(paths) = rfd::FileDialog::new().pick_files() {
+                                for p in paths {
+                                    if !self.files.contains(&p) {
+                                        self.files.push(p);
                                     }
-                                });
-                        } else {
-                            ui.label("Máx por PNG (MiB):");
-                            ui.add(
-                                egui::DragValue::new(&mut self.container_max_mib).clamp_range(1..=131072),
-                            );
+                                }
+                            }
+                        }
+                        if ui.button("Limpar lista").clicked() {
+                            self.files.clear();
                         }
                     });
-                }
-            }
-            ui.horizontal(|ui| {
-                ui.label("Password (opcional):");
-                ui.add(egui::TextEdit::singleline(&mut self.password).password(true));
+                    egui::ScrollArea::vertical()
+                        .max_height(140.0)
+                        .show(ui, |ui| {
+                            if self.files.is_empty() {
+                                ui.label("(sem ficheiros adicionados)");
+                            } else {
+                                for p in &self.files {
+                                    ui.label(p.display().to_string());
+                                }
+                            }
+                        });
+                    if self.container_mode && self.container_split {
+                        ui.horizontal(|ui| {
+                            ui.label("Destino (pasta):");
+                            let mut out_txt = self
+                                .container_outdir
+                                .as_ref()
+                                .map(|p| p.display().to_string())
+                                .unwrap_or_default();
+                            let response = ui.text_edit_singleline(&mut out_txt);
+                            if response.lost_focus() && !out_txt.is_empty() {
+                                self.container_outdir = Some(PathBuf::from(out_txt.trim()));
+                            }
+                            if ui.button("Escolher dir...").clicked() {
+                                if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                    self.container_outdir = Some(path);
+                                }
+                            }
+                        });
+                    } else {
+                        ui.horizontal(|ui| {
+                            ui.label("Saída (PNG):");
+                            let mut out_txt = self
+                                .out
+                                .as_ref()
+                                .map(|p| p.display().to_string())
+                                .unwrap_or_default();
+                            let response = ui.text_edit_singleline(&mut out_txt);
+                            if response.lost_focus() && !out_txt.is_empty() {
+                                self.out = Some(PathBuf::from(out_txt.trim()));
+                            }
+                            if ui.button("Escolher...").clicked() {
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .add_filter("PNG", &["png"])
+                                    .save_file()
+                                {
+                                    self.out = Some(path);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                right.vertical(|ui| {
+                    ui.checkbox(
+                        &mut self.container_mode,
+                        "Modo container (suporta ficheiros grandes, não usa LSB)",
+                    );
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new("Dica: use container para ficheiros grandes.")
+                                .small()
+                                .color(egui::Color32::from_gray(170)),
+                        )
+                        .wrap(true),
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("Password (opcional):");
+                        ui.add(egui::TextEdit::singleline(&mut self.password).password(true));
+                    });
+                    ui.collapsing("Opcoes avancadas", |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Bits por canal:");
+                            ui.add(egui::Slider::new(&mut self.bpc, 1..=4));
+                        });
+                        ui.checkbox(&mut self.allow_upscale, "Permitir upscale automatico");
+                    });
+
+                    if self.container_mode {
+                        ui.collapsing("Container: dividir em partes", |ui| {
+                            ui.checkbox(&mut self.container_split, "Dividir em partes (< limite)");
+                            if self.container_split {
+                                ui.horizontal(|ui| {
+                                    ui.checkbox(&mut self.container_limit_preset, "Usar preset (GiB)");
+                                    if self.container_limit_preset {
+                                        egui::ComboBox::from_id_source("container_limit_gib")
+                                            .selected_text(format!("{} GiB", self.container_limit_gib))
+                                            .show_ui(ui, |ui| {
+                                                for v in [2u64, 4, 8, 16, 32, 64, 128] {
+                                                    ui.selectable_value(
+                                                        &mut self.container_limit_gib,
+                                                        v,
+                                                        format!("{} GiB", v),
+                                                    );
+                                                }
+                                            });
+                                    } else {
+                                        ui.label("Max por PNG (MiB):");
+                                        ui.add(
+                                            egui::DragValue::new(&mut self.container_max_mib)
+                                                .clamp_range(1..=131072),
+                                        );
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
             });
-            ui.checkbox(&mut self.allow_upscale, "Permitir upscale automático");
+
+            ui.add_space(6.0);
             if ui
                 .add_enabled(!self.busy, egui::Button::new("Esconder → PNG"))
                 .clicked()
@@ -546,158 +628,318 @@ impl F2PngApp {
     }
 
     fn ui_reveal(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.heading("Revelar ficheiro(s)");
-            ui.separator();
-            file_picker(ui, "Imagem stego", &mut self.cover, true);
-            ui.horizontal(|ui| {
-                ui.label("Destino:");
-                let mut out_txt = self
-                    .out_reveal
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_default();
-                let response = ui.text_edit_singleline(&mut out_txt);
-                if response.lost_focus() && !out_txt.is_empty() {
-                    self.out_reveal = Some(PathBuf::from(out_txt.trim()));
-                }
-                if ui.button("Escolher dir...").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                        self.out_reveal = Some(path);
-                    }
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Password (se cifrado):");
-                ui.add(egui::TextEdit::singleline(&mut self.password).password(true));
-            });
-            ui.checkbox(&mut self.split_container, "Separar container em partes");
-            if self.split_container {
-                file_picker(ui, "Imagem de cobertura", &mut self.split_cover, true);
-                ui.horizontal(|ui| {
-                    ui.label("Destino (pasta):");
-                    let mut out_txt = self
-                        .split_outdir
-                        .as_ref()
-                        .map(|p| p.display().to_string())
-                        .unwrap_or_default();
-                    let response = ui.text_edit_singleline(&mut out_txt);
-                    if response.lost_focus() && !out_txt.is_empty() {
-                        self.split_outdir = Some(PathBuf::from(out_txt.trim()));
-                    }
-                    if ui.button("Escolher dir...").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                            self.split_outdir = Some(path);
+        ui.columns(2, |cols| {
+            let (left, right) = cols.split_at_mut(1);
+            let left = &mut left[0];
+            let right = &mut right[0];
+
+            left.vertical(|ui| {
+                section_frame(ui, "Revelar ficheiro(s)", |ui| {
+                    file_picker(ui, "Imagem stego", &mut self.cover, true);
+                    ui.horizontal(|ui| {
+                        ui.label("Destino:");
+                        let mut out_txt = self
+                            .out_reveal
+                            .as_ref()
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_default();
+                        let response = ui.text_edit_singleline(&mut out_txt);
+                        if response.lost_focus() && !out_txt.is_empty() {
+                            self.out_reveal = Some(PathBuf::from(out_txt.trim()));
+                        }
+                        if ui.button("Escolher dir...").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                self.out_reveal = Some(path);
+                            }
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Password (se cifrado):");
+                        ui.add(egui::TextEdit::singleline(&mut self.password).password(true));
+                    });
+                    ui.collapsing("Opcoes avancadas", |ui| {
+                        ui.checkbox(&mut self.split_container, "Separar container em partes");
+                        if self.split_container {
+                            file_picker(ui, "Imagem de cobertura", &mut self.split_cover, true);
+                            ui.horizontal(|ui| {
+                                ui.label("Destino (pasta):");
+                                let mut out_txt = self
+                                    .split_outdir
+                                    .as_ref()
+                                    .map(|p| p.display().to_string())
+                                    .unwrap_or_default();
+                                let response = ui.text_edit_singleline(&mut out_txt);
+                                if response.lost_focus() && !out_txt.is_empty() {
+                                    self.split_outdir = Some(PathBuf::from(out_txt.trim()));
+                                }
+                                if ui.button("Escolher dir...").clicked() {
+                                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                                        self.split_outdir = Some(path);
+                                    }
+                                }
+                            });
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut self.split_limit_preset, "Usar preset (GiB)");
+                                if self.split_limit_preset {
+                                    egui::ComboBox::from_id_source("split_limit_gib")
+                                        .selected_text(format!("{} GiB", self.split_limit_gib))
+                                        .show_ui(ui, |ui| {
+                                            for v in [2u64, 4, 8, 16, 32, 64, 128] {
+                                                ui.selectable_value(
+                                                    &mut self.split_limit_gib,
+                                                    v,
+                                                    format!("{} GiB", v),
+                                                );
+                                            }
+                                        });
+                                } else {
+                                    ui.label("Max por PNG (MiB):");
+                                    ui.add(
+                                        egui::DragValue::new(&mut self.split_max_mib)
+                                            .clamp_range(1..=131072),
+                                    );
+                                }
+                            });
+                        }
+                    });
+                    if ui.add_enabled(!self.busy, egui::Button::new("Revelar")).clicked() {
+                        if let Some(stego) = &self.cover {
+                            let outdir = self
+                                .out_reveal
+                                .clone()
+                                .unwrap_or_else(|| stego.with_extension("out"));
+                            let pw =
+                                if self.password.is_empty() { None } else { Some(self.password.clone()) };
+                            let stego_clone = stego.clone();
+                            self.push_log(&format!(
+                                "A iniciar reveal: stego='{}', outdir='{}', bpc=2, password_set={}, split={}",
+                                stego.display(),
+                                outdir.display(),
+                                pw.is_some(),
+                                self.split_container
+                            ));
+                            self.busy = true;
+                            self.progress_value = 0.0;
+                            let (tx, rx) = mpsc::channel();
+                            self.rx = Some(rx);
+                            let split_container = self.split_container;
+                            let split_cover = self.split_cover.clone();
+                            let split_outdir = self.split_outdir.clone();
+                            let split_limit_preset = self.split_limit_preset;
+                            let split_limit_gib = self.split_limit_gib;
+                            let split_max_mib = self.split_max_mib;
+                            thread::spawn(move || {
+                                let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (ler/decifrar)");
+                                let t0 = Instant::now();
+                                let tx_progress = tx.clone();
+                                let cb = Arc::new(move |p: ProgressUpdate| {
+                                    let _ = tx_progress.send(UiMessage::Progress {
+                                        label: "A revelar".into(),
+                                        update: p,
+                                    });
+                                });
+                                let is_container = is_container_png(&stego_clone);
+                                let _ = tx.send(UiMessage::Info {
+                                    msg: format!(
+                                        "Reveal em curso → stego='{}', outdir='{}', mode={}, split={}",
+                                        stego_clone.display(),
+                                        outdir.display(),
+                                        if is_container { "container" } else { "lsb" },
+                                        split_container
+                                    ),
+                                });
+                                ticker_flag.store(false, Ordering::Relaxed);
+                                if split_container {
+                                    let cover = match split_cover.as_ref() {
+                                        Some(c) => c,
+                                        None => {
+                                            let _ = tx.send(UiMessage::Error {
+                                                err: "Capa obrigatória para separar em partes.".into(),
+                                            });
+                                            return;
+                                        }
+                                    };
+                                    let outdir =
+                                        split_outdir.unwrap_or_else(|| stego_clone.with_extension("parts"));
+                                    let max_bytes = if split_limit_preset {
+                                        split_limit_gib.saturating_mul(1024 * 1024 * 1024)
+                                    } else {
+                                        split_max_mib.saturating_mul(1024 * 1024)
+                                    };
+                                    let res = split_container_png_to_parts(
+                                        &stego_clone,
+                                        Some(cover),
+                                        &outdir,
+                                        max_bytes,
+                                        pw.as_deref(),
+                                        Some(cb),
+                                    );
+                                    match res {
+                                        Ok(parts) => {
+                                            let dt = t0.elapsed().as_secs_f64();
+                                            let log = format!(
+                                                "OK: {} partes → {} | {:.2}s",
+                                                parts.len(),
+                                                outdir.display(),
+                                                dt
+                                            );
+                                            let _ = tx.send(UiMessage::Done { log });
+                                        }
+                                        Err(e) => {
+                                            let _ = tx.send(UiMessage::Error { err: e.to_string() });
+                                        }
+                                    }
+                                } else if is_container {
+                                    let res = unwrap_container_png_to_dir(
+                                        &stego_clone,
+                                        &outdir,
+                                        pw.as_deref(),
+                                        Some(cb),
+                                    );
+                                    match res {
+                                        Ok(path) => {
+                                            let total =
+                                                std::fs::metadata(&path).map(|m| m.len() as f64).unwrap_or(0.0);
+                                            let dt = t0.elapsed().as_secs_f64();
+                                            let mbps = if dt > 0.0 {
+                                                total / (1024.0 * 1024.0) / dt
+                                            } else {
+                                                0.0
+                                            };
+                                            let log = format!(
+                                                "OK: 1 ficheiro → {} | {:.2}s | {:.2} MiB/s",
+                                                path.display(),
+                                                dt,
+                                                mbps
+                                            );
+                                            let _ = tx.send(UiMessage::Done { log });
+                                        }
+                                        Err(e) => {
+                                            let _ = tx.send(UiMessage::Error { err: e.to_string() });
+                                        }
+                                    }
+                                } else {
+                                    let res = reveal_to_dir(&stego_clone, &outdir, 2, pw, Some(cb));
+                                    match res {
+                                        Ok(info) => {
+                                            let mut total: f64 = 0.0;
+                                            for p in &info.output_paths {
+                                                if let Ok(m) = std::fs::metadata(p) {
+                                                    total += m.len() as f64;
+                                                }
+                                            }
+                                            let dt = t0.elapsed().as_secs_f64();
+                                            let mbps = if dt > 0.0 {
+                                                total / (1024.0 * 1024.0) / dt
+                                            } else {
+                                                0.0
+                                            };
+                                            let log = format!(
+                                                "OK: {} ficheiro(s) → {} (encrypted={}, multi={}) | {:.2}s | {:.2} MiB/s",
+                                                info.output_paths.len(),
+                                                outdir.display(),
+                                                info.encrypted,
+                                                info.multi,
+                                                dt,
+                                                mbps,
+                                            );
+                                            let _ = tx.send(UiMessage::Done { log });
+                                        }
+                                        Err(e) => {
+                                            let _ = tx.send(UiMessage::Error { err: e.to_string() });
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            self.push_log("ERRO: escolhe stego.");
                         }
                     }
                 });
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.split_limit_preset, "Usar preset (GiB)");
-                    if self.split_limit_preset {
-                        egui::ComboBox::from_id_source("split_limit_gib")
-                            .selected_text(format!("{} GiB", self.split_limit_gib))
-                            .show_ui(ui, |ui| {
-                                for v in [2u64, 4, 8, 16, 32, 64, 128] {
-                                    ui.selectable_value(&mut self.split_limit_gib, v, format!("{} GiB", v));
-                                }
-                            });
-                    } else {
-                        ui.label("Máx por PNG (MiB):");
-                        ui.add(egui::DragValue::new(&mut self.split_max_mib).clamp_range(1..=131072));
-                    }
-                });
-            }
-            if ui.add_enabled(!self.busy, egui::Button::new("Revelar")).clicked() {
-                if let Some(stego) = &self.cover {
-                    let outdir = self
-                        .out_reveal
-                        .clone()
-                        .unwrap_or_else(|| stego.with_extension("out"));
-                    let pw = if self.password.is_empty() { None } else { Some(self.password.clone()) };
-                    let stego_clone = stego.clone();
-                    self.push_log(&format!(
-                        "A iniciar reveal: stego='{}', outdir='{}', bpc=2, password_set={}, split={}",
-                        stego.display(),
-                        outdir.display(),
-                        pw.is_some(),
-                        self.split_container
-                    ));
-                    self.busy = true;
-                    self.progress_value = 0.0;
-                    let (tx, rx) = mpsc::channel();
-                    self.rx = Some(rx);
-                    let split_container = self.split_container;
-                    let split_cover = self.split_cover.clone();
-                    let split_outdir = self.split_outdir.clone();
-                    let split_limit_preset = self.split_limit_preset;
-                    let split_limit_gib = self.split_limit_gib;
-                    let split_max_mib = self.split_max_mib;
-                    thread::spawn(move || {
-                        let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (ler/decifrar)");
-                        let t0 = Instant::now();
-                        let tx_progress = tx.clone();
-                        let cb = Arc::new(move |p: ProgressUpdate| {
-                            let _ = tx_progress.send(UiMessage::Progress {
-                                label: "A revelar".into(),
-                                update: p,
-                            });
-                        });
-                        let is_container = is_container_png(&stego_clone);
-                        let _ = tx.send(UiMessage::Info {
-                            msg: format!(
-                                "Reveal em curso → stego='{}', outdir='{}', mode={}, split={}",
-                                stego_clone.display(),
-                                outdir.display(),
-                                if is_container { "container" } else { "lsb" },
-                                split_container
-                            ),
-                        });
-                        ticker_flag.store(false, Ordering::Relaxed);
-                        if split_container {
-                            let cover = match split_cover.as_ref() {
-                                Some(c) => c,
-                                None => {
-                                    let _ = tx.send(UiMessage::Error {
-                                        err: "Capa obrigatória para separar em partes.".into(),
-                                    });
-                                    return;
-                                }
-                            };
-                            let outdir = split_outdir.unwrap_or_else(|| stego_clone.with_extension("parts"));
-                            let max_bytes = if split_limit_preset {
-                                split_limit_gib.saturating_mul(1024 * 1024 * 1024)
-                            } else {
-                                split_max_mib.saturating_mul(1024 * 1024)
-                            };
-                            let res = split_container_png_to_parts(
-                                &stego_clone,
-                                Some(cover),
-                                &outdir,
-                                max_bytes,
-                                pw.as_deref(),
-                                Some(cb),
-                            );
-                            match res {
-                                Ok(parts) => {
-                                    let dt = t0.elapsed().as_secs_f64();
-                                    let log = format!(
-                                        "OK: {} partes → {} | {:.2}s",
-                                        parts.len(),
-                                        outdir.display(),
-                                        dt
-                                    );
-                                    let _ = tx.send(UiMessage::Done { log });
-                                }
-                                Err(e) => {
-                                    let _ = tx.send(UiMessage::Error { err: e.to_string() });
+            });
+
+            right.vertical(|ui| {
+                section_frame(ui, "Juntar partes (container)", |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("Adicionar partes...").clicked() {
+                            if let Some(paths) = rfd::FileDialog::new()
+                                .add_filter("PNG", &["png"])
+                                .pick_files()
+                            {
+                                for p in paths {
+                                    if !self.join_parts.contains(&p) {
+                                        self.join_parts.push(p);
+                                    }
                                 }
                             }
-                        } else if is_container {
-                            let res =
-                                unwrap_container_png_to_dir(&stego_clone, &outdir, pw.as_deref(), Some(cb));
+                        }
+                        if ui.button("Limpar lista").clicked() {
+                            self.join_parts.clear();
+                        }
+                    });
+                    egui::ScrollArea::vertical()
+                        .max_height(140.0)
+                        .show(ui, |ui| {
+                            if self.join_parts.is_empty() {
+                                ui.label("(sem partes selecionadas)");
+                            } else {
+                                for p in &self.join_parts {
+                                    ui.label(p.display().to_string());
+                                }
+                            }
+                        });
+                    ui.horizontal(|ui| {
+                        ui.label("Saída (ficheiro):");
+                        let mut out_txt = self
+                            .join_out
+                            .as_ref()
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_default();
+                        let response = ui.text_edit_singleline(&mut out_txt);
+                        if response.lost_focus() && !out_txt.is_empty() {
+                            self.join_out = Some(PathBuf::from(out_txt.trim()));
+                        }
+                        if ui.button("Escolher...").clicked() {
+                            if let Some(path) = rfd::FileDialog::new().save_file() {
+                                self.join_out = Some(path);
+                            }
+                        }
+                    });
+                    if ui.add_enabled(!self.busy, egui::Button::new("Juntar partes")).clicked() {
+                        if self.join_parts.is_empty() {
+                            self.push_log("ERRO: adiciona partes PNG.");
+                            return;
+                        }
+                        let out = self.join_out.clone().unwrap_or_else(|| PathBuf::from("joined.bin"));
+                        let pw =
+                            if self.password.is_empty() { None } else { Some(self.password.clone()) };
+                        let parts = self.join_parts.clone();
+                        self.push_log(&format!(
+                            "A iniciar join: partes={}, out='{}', password_set={}",
+                            parts.len(),
+                            out.display(),
+                            pw.is_some()
+                        ));
+                        self.busy = true;
+                        self.progress_value = 0.0;
+                        let (tx, rx) = mpsc::channel();
+                        self.rx = Some(rx);
+                        thread::spawn(move || {
+                            let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (ler/decifrar)");
+                            let t0 = Instant::now();
+                            let tx_progress = tx.clone();
+                            let cb = Arc::new(move |p: ProgressUpdate| {
+                                let _ = tx_progress.send(UiMessage::Progress {
+                                    label: "A juntar".into(),
+                                    update: p,
+                                });
+                            });
+                            ticker_flag.store(false, Ordering::Relaxed);
+                            let res = join_container_png_parts_to_file(&parts, &out, pw.as_deref(), Some(cb));
                             match res {
-                                Ok(path) => {
-                                    let total = std::fs::metadata(&path).map(|m| m.len() as f64).unwrap_or(0.0);
+                                Ok(()) => {
+                                    let total =
+                                        std::fs::metadata(&out).map(|m| m.len() as f64).unwrap_or(0.0);
                                     let dt = t0.elapsed().as_secs_f64();
                                     let mbps = if dt > 0.0 {
                                         total / (1024.0 * 1024.0) / dt
@@ -705,8 +947,8 @@ impl F2PngApp {
                                         0.0
                                     };
                                     let log = format!(
-                                        "OK: 1 ficheiro → {} | {:.2}s | {:.2} MiB/s",
-                                        path.display(),
+                                        "OK: {} | {:.2}s | {:.2} MiB/s",
+                                        out.display(),
                                         dt,
                                         mbps
                                     );
@@ -716,147 +958,10 @@ impl F2PngApp {
                                     let _ = tx.send(UiMessage::Error { err: e.to_string() });
                                 }
                             }
-                        } else {
-                            let res = reveal_to_dir(&stego_clone, &outdir, 2, pw, Some(cb));
-                            match res {
-                                Ok(info) => {
-                                    let mut total: f64 = 0.0;
-                                    for p in &info.output_paths {
-                                        if let Ok(m) = std::fs::metadata(p) {
-                                            total += m.len() as f64;
-                                        }
-                                    }
-                                    let dt = t0.elapsed().as_secs_f64();
-                                    let mbps = if dt > 0.0 {
-                                        total / (1024.0 * 1024.0) / dt
-                                    } else {
-                                        0.0
-                                    };
-                                    let log = format!(
-                                        "OK: {} ficheiro(s) → {} (encrypted={}, multi={}) | {:.2}s | {:.2} MiB/s",
-                                        info.output_paths.len(),
-                                        outdir.display(),
-                                        info.encrypted,
-                                        info.multi,
-                                        dt,
-                                        mbps,
-                                    );
-                                    let _ = tx.send(UiMessage::Done { log });
-                                }
-                                Err(e) => {
-                                    let _ = tx.send(UiMessage::Error { err: e.to_string() });
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    self.push_log("ERRO: escolhe stego.");
-                }
-            }
-        });
-        ui.group(|ui| {
-            ui.heading("Juntar partes (container)");
-            ui.separator();
-            ui.horizontal(|ui| {
-                if ui.button("Adicionar partes...").clicked() {
-                    if let Some(paths) = rfd::FileDialog::new()
-                        .add_filter("PNG", &["png"])
-                        .pick_files()
-                    {
-                        for p in paths {
-                            if !self.join_parts.contains(&p) {
-                                self.join_parts.push(p);
-                            }
-                        }
-                    }
-                }
-                if ui.button("Limpar lista").clicked() {
-                    self.join_parts.clear();
-                }
-            });
-            egui::ScrollArea::vertical()
-                .max_height(100.0)
-                .show(ui, |ui| {
-                    if self.join_parts.is_empty() {
-                        ui.label("(sem partes selecionadas)");
-                    } else {
-                        for p in &self.join_parts {
-                            ui.label(p.display().to_string());
-                        }
-                    }
-                });
-            ui.horizontal(|ui| {
-                ui.label("Saída (ficheiro):");
-                let mut out_txt = self
-                    .join_out
-                    .as_ref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_default();
-                let response = ui.text_edit_singleline(&mut out_txt);
-                if response.lost_focus() && !out_txt.is_empty() {
-                    self.join_out = Some(PathBuf::from(out_txt.trim()));
-                }
-                if ui.button("Escolher...").clicked() {
-                    if let Some(path) = rfd::FileDialog::new().save_file() {
-                        self.join_out = Some(path);
-                    }
-                }
-            });
-            if ui.add_enabled(!self.busy, egui::Button::new("Juntar partes")).clicked() {
-                if self.join_parts.is_empty() {
-                    self.push_log("ERRO: adiciona partes PNG.");
-                    return;
-                }
-                let out = self.join_out.clone().unwrap_or_else(|| {
-                    PathBuf::from("joined.bin")
-                });
-                let pw = if self.password.is_empty() { None } else { Some(self.password.clone()) };
-                let parts = self.join_parts.clone();
-                self.push_log(&format!(
-                    "A iniciar join: partes={}, out='{}', password_set={}",
-                    parts.len(),
-                    out.display(),
-                    pw.is_some()
-                ));
-                self.busy = true;
-                self.progress_value = 0.0;
-                let (tx, rx) = mpsc::channel();
-                self.rx = Some(rx);
-                thread::spawn(move || {
-                    let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (ler/decifrar)");
-                    let t0 = Instant::now();
-                    let tx_progress = tx.clone();
-                    let cb = Arc::new(move |p: ProgressUpdate| {
-                        let _ = tx_progress.send(UiMessage::Progress {
-                            label: "A juntar".into(),
-                            update: p,
                         });
-                    });
-                    ticker_flag.store(false, Ordering::Relaxed);
-                    let res = join_container_png_parts_to_file(&parts, &out, pw.as_deref(), Some(cb));
-                    match res {
-                        Ok(()) => {
-                            let total = std::fs::metadata(&out).map(|m| m.len() as f64).unwrap_or(0.0);
-                            let dt = t0.elapsed().as_secs_f64();
-                            let mbps = if dt > 0.0 {
-                                total / (1024.0 * 1024.0) / dt
-                            } else {
-                                0.0
-                            };
-                            let log = format!(
-                                "OK: {} | {:.2}s | {:.2} MiB/s",
-                                out.display(),
-                                dt,
-                                mbps
-                            );
-                            let _ = tx.send(UiMessage::Done { log });
-                        }
-                        Err(e) => {
-                            let _ = tx.send(UiMessage::Error { err: e.to_string() });
-                        }
                     }
                 });
-            }
+            });
         });
     }
 
@@ -954,9 +1059,7 @@ impl F2PngApp {
     }
 
     fn ui_help(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.heading("Ajuda");
-            ui.separator();
+        section_frame(ui, "Ajuda", |ui| {
             ui.collapsing("Programa", |ui| {
                 ui.label("f2png converte ficheiros em dados escondidos em PNG via esteganografia LSB.");
             });
@@ -985,9 +1088,7 @@ impl F2PngApp {
     }
 
     fn ui_tests(&mut self, ui: &mut egui::Ui) {
-        ui.group(|ui| {
-            ui.heading("Testes rápidos");
-            ui.separator();
+        section_frame(ui, "Testes rápidos", |ui| {
             ui.label("Corre um roundtrip de 1 MiB e mede throughput (usa diretório temporário).");
             if ui.add_enabled(!self.busy, egui::Button::new("Correr autoteste")).clicked() {
                 self.busy = true;
@@ -1132,7 +1233,7 @@ impl F2PngApp {
                             let dt = t0.elapsed().as_secs_f64();
                             let mib_s = if dt > 0.0 { (size as f64) / (1024.0 * 1024.0) / dt } else { 0.0 };
                             let sizes = size_list();
-                            let out_path = PathBuf::from("benchmarks/rust_lsb_speed_estimates.txt");
+                            let out_path = PathBuf::from("output/bench_estimates_gui.txt");
                             if let Some(parent) = out_path.parent() {
                                 let _ = std::fs::create_dir_all(parent);
                             }
