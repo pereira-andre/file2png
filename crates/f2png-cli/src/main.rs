@@ -7,11 +7,10 @@ mod help;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use f2png_core::{
-    embed_multi, embed_single_file, info_capacity,
+    embed_multi, embed_single_file, info_capacity, join_container_png_parts_to_file,
     lsb::{ProgressPhase, ProgressUpdate},
-    join_container_png_parts_to_file, reveal_to_dir, split_container_png_to_parts, swap_cover,
-    unwrap_container_png_to_dir, wrap_single_file_container_png, wrap_single_file_container_png_parts,
-    EncryptOptions,
+    reveal_to_dir, split_container_png_to_parts, swap_cover, unwrap_container_png_to_dir,
+    wrap_single_file_container_png, wrap_single_file_container_png_parts, EncryptOptions,
 };
 use image::{ImageBuffer, Rgba};
 use std::path::PathBuf;
@@ -66,10 +65,7 @@ fn format_eta(secs: f64) -> String {
 }
 
 fn print_progress(prefix: &str, p: &ProgressUpdate) {
-    let eta = p
-        .eta
-        .map(format_eta)
-        .unwrap_or_else(|| "--".into());
+    let eta = p.eta.map(format_eta).unwrap_or_else(|| "--".into());
     eprint!(
         "\r{} {:<5} [{:<20}] {:5.1}% | {:6.2} MiB/s | ETA {}",
         prefix,
@@ -519,8 +515,11 @@ fn main() -> Result<()> {
             let out = outdir.unwrap_or_else(|| stego.with_extension("out"));
             let t0 = Instant::now();
             let cb = Arc::new(|p: ProgressUpdate| print_progress("CONT", &p));
-            let restored = unwrap_container_png_to_dir(&stego, &out, password.as_deref(), Some(cb))?;
-            let total = std::fs::metadata(&restored).map(|m| m.len() as f64).unwrap_or(0.0);
+            let restored =
+                unwrap_container_png_to_dir(&stego, &out, password.as_deref(), Some(cb))?;
+            let total = std::fs::metadata(&restored)
+                .map(|m| m.len() as f64)
+                .unwrap_or(0.0);
             let dt = t0.elapsed().as_secs_f64();
             let mbps = if dt > 0.0 {
                 total / (1024.0 * 1024.0) / dt
@@ -661,11 +660,12 @@ fn main() -> Result<()> {
             std::fs::write(&outfile, buf)?;
             println!("[BENCH] Tabela escrita em {:?}", outfile);
         }
-        Commands::BenchContainerEmbed { size, password, out } => {
-            println!(
-                "[BENCH] Container embed de {} ...",
-                fmt_size(size)
-            );
+        Commands::BenchContainerEmbed {
+            size,
+            password,
+            out,
+        } => {
+            println!("[BENCH] Container embed de {} ...", fmt_size(size));
             let (dt, mib_s) = run_container_embed_benchmark(size, password.as_deref())?;
             println!("[BENCH] Tempo {:.2}s → {:.2} MiB/s", dt, mib_s);
 
@@ -699,11 +699,12 @@ fn main() -> Result<()> {
             std::fs::write(&outfile, buf)?;
             println!("[BENCH] Tabela escrita em {:?}", outfile);
         }
-        Commands::BenchContainerReveal { size, password, out } => {
-            println!(
-                "[BENCH] Container reveal de {} ...",
-                fmt_size(size)
-            );
+        Commands::BenchContainerReveal {
+            size,
+            password,
+            out,
+        } => {
+            println!("[BENCH] Container reveal de {} ...", fmt_size(size));
             let (dt, mib_s) = run_container_reveal_benchmark(size, password.as_deref())?;
             println!("[BENCH] Tempo {:.2}s → {:.2} MiB/s", dt, mib_s);
 

@@ -83,7 +83,11 @@ fn sanitize_filename(name: &str) -> String {
         .next()
         .unwrap_or("restored.bin");
     let name = name.trim_matches(['.', ' ']);
-    let name = if name.is_empty() { "restored.bin" } else { name };
+    let name = if name.is_empty() {
+        "restored.bin"
+    } else {
+        name
+    };
     name.chars()
         .map(|c| match c {
             '\0' | '/' | '\\' => '_',
@@ -225,7 +229,10 @@ pub fn build_payload_single_streaming(
     file.seek(SeekFrom::End(0))?;
 
     let total = 1 + 2 + name.len() + 8 + 32 + copied as usize;
-    Ok(PayloadFile { file: tmp, len: total })
+    Ok(PayloadFile {
+        file: tmp,
+        len: total,
+    })
 }
 
 pub fn build_payload_multi_streaming(
@@ -288,7 +295,10 @@ pub fn build_payload_multi_streaming(
         file.seek(SeekFrom::End(0))?;
     }
     writer.flush()?;
-    Ok(PayloadFile { file: tmp, len: total })
+    Ok(PayloadFile {
+        file: tmp,
+        len: total,
+    })
 }
 
 pub fn parse_payload_streaming<R: Read>(mut reader: R, outdir: &Path) -> Result<Vec<PathBuf>> {

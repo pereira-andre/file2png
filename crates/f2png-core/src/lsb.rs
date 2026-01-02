@@ -172,38 +172,41 @@ pub fn embed_lsb_parallel(
     rgba.par_chunks_mut(RGBA_STRIDE)
         .take(pixels_to_touch)
         .enumerate()
-        .for_each_init(|| 0usize, |local_acc, (idx, px)| {
-            let start_bit = idx * bits_per_pixel;
-            if start_bit >= total_bits {
-                return;
-            }
-            let mut local_bits = 0usize;
-            for chan in 0..CHANNELS_USED {
-                if start_bit + local_bits >= total_bits {
-                    break;
+        .for_each_init(
+            || 0usize,
+            |local_acc, (idx, px)| {
+                let start_bit = idx * bits_per_pixel;
+                if start_bit >= total_bits {
+                    return;
                 }
-                let mut new_bits: u8 = 0;
-                for b in 0..bpc {
-                    let global_bit = start_bit + local_bits;
-                    if global_bit >= total_bits {
+                let mut local_bits = 0usize;
+                for chan in 0..CHANNELS_USED {
+                    if start_bit + local_bits >= total_bits {
                         break;
                     }
-                    let byte_i = global_bit / 8;
-                    let bit_i = (global_bit % 8) as u8;
-                    let byte = data.byte_at(byte_i);
-                    let bit_val = (byte >> bit_i) & 1;
-                    new_bits |= bit_val << b;
-                    local_bits += 1;
+                    let mut new_bits: u8 = 0;
+                    for b in 0..bpc {
+                        let global_bit = start_bit + local_bits;
+                        if global_bit >= total_bits {
+                            break;
+                        }
+                        let byte_i = global_bit / 8;
+                        let bit_i = (global_bit % 8) as u8;
+                        let byte = data.byte_at(byte_i);
+                        let bit_val = (byte >> bit_i) & 1;
+                        new_bits |= bit_val << b;
+                        local_bits += 1;
+                    }
+                    px[chan] = (px[chan] & !mask) | new_bits;
                 }
-                px[chan] = (px[chan] & !mask) | new_bits;
-            }
 
-            *local_acc += local_bits;
-            if *local_acc >= 1 << 20 {
-                processed.fetch_add(*local_acc, Ordering::Relaxed);
-                *local_acc = 0;
-            }
-        });
+                *local_acc += local_bits;
+                if *local_acc >= 1 << 20 {
+                    processed.fetch_add(*local_acc, Ordering::Relaxed);
+                    *local_acc = 0;
+                }
+            },
+        );
 
     processed.store(total_bits, Ordering::Relaxed);
     done_flag.store(true, Ordering::Relaxed);

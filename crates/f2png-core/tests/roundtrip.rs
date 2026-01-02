@@ -148,7 +148,10 @@ fn container_wrap_unwrap_plain() {
 
     wrap_single_file_container_png(Some(&cover), &infile, &outpng, None, None).unwrap();
     let restored = unwrap_container_png_to_dir(&outpng, &outdir, None, None).unwrap();
-    assert_eq!(std::fs::read(&restored).unwrap(), std::fs::read(&infile).unwrap());
+    assert_eq!(
+        std::fs::read(&restored).unwrap(),
+        std::fs::read(&infile).unwrap()
+    );
 }
 
 #[test]
@@ -164,5 +167,8 @@ fn container_wrap_unwrap_encrypted() {
 
     wrap_single_file_container_png(Some(&cover), &infile, &outpng, Some("pw123"), None).unwrap();
     let restored = unwrap_container_png_to_dir(&outpng, &outdir, Some("pw123"), None).unwrap();
-    assert_eq!(std::fs::read(&restored).unwrap(), std::fs::read(&infile).unwrap());
+    assert_eq!(
+        std::fs::read(&restored).unwrap(),
+        std::fs::read(&infile).unwrap()
+    );
 }

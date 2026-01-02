@@ -300,7 +300,11 @@ fn write_header_placeholder(
     let end = writer.stream_position()?;
     let expected = header_start + header_len(name.len(), salt.len()) as u64;
     if end != expected {
-        anyhow::bail!("Header size mismatch ({} vs {}).", end - header_start, expected - header_start);
+        anyhow::bail!(
+            "Header size mismatch ({} vs {}).",
+            end - header_start,
+            expected - header_start
+        );
     }
     Ok((sha_offset, cipher_len_offset))
 }
@@ -705,7 +709,8 @@ pub fn wrap_single_file_container_png_parts(
     };
     let name_len = format_part_header_name(&base_name, 1, 1).len();
     let cover_size = cover_png_size(cover)?;
-    let max_plain = max_plain_len_for_limit(max_png_bytes, cover_size, name_len, encrypted, salt_len)?;
+    let max_plain =
+        max_plain_len_for_limit(max_png_bytes, cover_size, name_len, encrypted, salt_len)?;
     let total_parts = if file_len == 0 {
         1
     } else {

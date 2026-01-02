@@ -264,7 +264,11 @@ impl eframe::App for F2PngApp {
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Estado:");
-                    ui.strong(if self.busy { &self.progress_label } else { "Pronto" });
+                    ui.strong(if self.busy {
+                        &self.progress_label
+                    } else {
+                        "Pronto"
+                    });
                 });
                 ui.add(
                     egui::ProgressBar::new((self.progress_value / 100.0).clamp(0.0, 1.0))
@@ -331,7 +335,12 @@ impl F2PngApp {
                 let right = &mut right[0];
 
                 left.vertical(|ui| {
-                    file_picker(ui, "Imagem de cobertura", &mut self.cover, !self.container_mode);
+                    file_picker(
+                        ui,
+                        "Imagem de cobertura",
+                        &mut self.cover,
+                        !self.container_mode,
+                    );
                     self.ui_capacity_hint(ui);
                     ui.horizontal(|ui| {
                         if ui.button("Adicionar ficheiro...").clicked() {
@@ -437,10 +446,16 @@ impl F2PngApp {
                             ui.checkbox(&mut self.container_split, "Dividir em partes (< limite)");
                             if self.container_split {
                                 ui.horizontal(|ui| {
-                                    ui.checkbox(&mut self.container_limit_preset, "Usar preset (GiB)");
+                                    ui.checkbox(
+                                        &mut self.container_limit_preset,
+                                        "Usar preset (GiB)",
+                                    );
                                     if self.container_limit_preset {
                                         egui::ComboBox::from_id_source("container_limit_gib")
-                                            .selected_text(format!("{} GiB", self.container_limit_gib))
+                                            .selected_text(format!(
+                                                "{} GiB",
+                                                self.container_limit_gib
+                                            ))
                                             .show_ui(ui, |ui| {
                                                 for v in [2u64, 4, 8, 16, 32, 64, 128] {
                                                     ui.selectable_value(
@@ -500,24 +515,24 @@ impl F2PngApp {
                         first.with_extension("stego.png")
                     })
                 };
-                    let opts = EncryptOptions {
-                        password: if self.password.is_empty() {
-                            None
-                        } else {
-                            Some(self.password.clone())
-                        },
-                        bpc: self.bpc,
-                        allow_upscale: self.allow_upscale,
-                    };
-                    let cover = self.cover.clone();
-                    let files = self.files.clone();
-                    let out_clone = out.clone();
-                    let container_mode = self.container_mode;
-                    let container_split = container_split;
-                    let container_limit_preset = container_limit_preset;
-                    let container_limit_gib = container_limit_gib;
-                    let container_max_mib = container_max_mib;
-                    self.push_log(&format!(
+                let opts = EncryptOptions {
+                    password: if self.password.is_empty() {
+                        None
+                    } else {
+                        Some(self.password.clone())
+                    },
+                    bpc: self.bpc,
+                    allow_upscale: self.allow_upscale,
+                };
+                let cover = self.cover.clone();
+                let files = self.files.clone();
+                let out_clone = out.clone();
+                let container_mode = self.container_mode;
+                let container_split = container_split;
+                let container_limit_preset = container_limit_preset;
+                let container_limit_gib = container_limit_gib;
+                let container_max_mib = container_max_mib;
+                self.push_log(&format!(
                         "A iniciar embed: cover='{}', out='{}', ficheiros={}, bpc={}, password_set={}, allow_upscale={}, container_mode={}, split={}",
                         cover
                             .as_ref()
@@ -531,25 +546,26 @@ impl F2PngApp {
                         container_mode,
                         container_split
                     ));
-                    self.busy = true;
-                    self.progress_value = 0.0;
-                    let (tx, rx) = mpsc::channel();
-                    self.rx = Some(rx);
-                    thread::spawn(move || {
-                        let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (hash/cifra)");
-                        let total: f64 = files
-                            .iter()
-                            .map(|p| std::fs::metadata(p).map(|m| m.len() as f64).unwrap_or(0.0))
-                            .sum();
-                        let t0 = Instant::now();
-                        let tx_progress = tx.clone();
-                        let cb: Arc<dyn Fn(ProgressUpdate) + Send + Sync> = Arc::new(move |p: ProgressUpdate| {
+                self.busy = true;
+                self.progress_value = 0.0;
+                let (tx, rx) = mpsc::channel();
+                self.rx = Some(rx);
+                thread::spawn(move || {
+                    let ticker_flag = start_prepare_ticker(tx.clone(), "A preparar (hash/cifra)");
+                    let total: f64 = files
+                        .iter()
+                        .map(|p| std::fs::metadata(p).map(|m| m.len() as f64).unwrap_or(0.0))
+                        .sum();
+                    let t0 = Instant::now();
+                    let tx_progress = tx.clone();
+                    let cb: Arc<dyn Fn(ProgressUpdate) + Send + Sync> =
+                        Arc::new(move |p: ProgressUpdate| {
                             let _ = tx_progress.send(UiMessage::Progress {
                                 label: "A esconder".into(),
                                 update: p,
                             });
                         });
-                        let _ = tx.send(UiMessage::Info {
+                    let _ = tx.send(UiMessage::Info {
                             msg: format!(
                                 "Embed em curso → cover='{}', out='{}', ficheiros={}, bpc={}, container_mode={}, split={}",
                                 cover
@@ -563,66 +579,66 @@ impl F2PngApp {
                                 container_split
                             ),
                         });
-                        let res = if container_mode && container_split {
-                            let max_bytes = if container_limit_preset {
-                                container_limit_gib.saturating_mul(1024 * 1024 * 1024)
-                            } else {
-                                container_max_mib.saturating_mul(1024 * 1024)
-                            };
-                            wrap_single_file_container_png_parts(
-                                cover.as_deref(),
-                                &files[0],
-                                &out_clone,
-                                max_bytes,
-                                opts.password.as_deref(),
-                                Some(Arc::clone(&cb)),
-                            )
-                            .map(|_| ())
-                        } else if container_mode {
-                            wrap_single_file_container_png(
-                                cover.as_deref(),
-                                &files[0],
-                                &out_clone,
-                                opts.password.as_deref(),
-                                Some(Arc::clone(&cb)),
-                            )
-                        } else if files.len() == 1 {
-                            let cover = cover.expect("cover required");
-                            embed_single_file(
-                                &cover,
-                                &files[0],
-                                &out_clone,
-                                &opts,
-                                Some(Arc::clone(&cb)),
-                            )
-                            .map(|_| ())
+                    let res = if container_mode && container_split {
+                        let max_bytes = if container_limit_preset {
+                            container_limit_gib.saturating_mul(1024 * 1024 * 1024)
                         } else {
-                            let cover = cover.expect("cover required");
-                            embed_multi(&cover, &files, &out_clone, &opts, Some(Arc::clone(&cb)))
-                                .map(|_| ())
+                            container_max_mib.saturating_mul(1024 * 1024)
                         };
-                        ticker_flag.store(false, Ordering::Relaxed);
-                        match res {
-                            Ok(()) => {
-                                let dt = t0.elapsed().as_secs_f64();
-                                let mbps = if dt > 0.0 {
-                                    total / (1024.0 * 1024.0) / dt
-                                } else {
-                                    0.0
-                                };
-                                let log = format!(
-                                    "OK: {} | {:.2}s | {:.2} MiB/s",
-                                    out_clone.display(),
-                                    dt,
-                                    mbps
-                                );
-                                let _ = tx.send(UiMessage::Done { log });
-                            }
-                            Err(e) => {
-                                let _ = tx.send(UiMessage::Error { err: e.to_string() });
-                            }
+                        wrap_single_file_container_png_parts(
+                            cover.as_deref(),
+                            &files[0],
+                            &out_clone,
+                            max_bytes,
+                            opts.password.as_deref(),
+                            Some(Arc::clone(&cb)),
+                        )
+                        .map(|_| ())
+                    } else if container_mode {
+                        wrap_single_file_container_png(
+                            cover.as_deref(),
+                            &files[0],
+                            &out_clone,
+                            opts.password.as_deref(),
+                            Some(Arc::clone(&cb)),
+                        )
+                    } else if files.len() == 1 {
+                        let cover = cover.expect("cover required");
+                        embed_single_file(
+                            &cover,
+                            &files[0],
+                            &out_clone,
+                            &opts,
+                            Some(Arc::clone(&cb)),
+                        )
+                        .map(|_| ())
+                    } else {
+                        let cover = cover.expect("cover required");
+                        embed_multi(&cover, &files, &out_clone, &opts, Some(Arc::clone(&cb)))
+                            .map(|_| ())
+                    };
+                    ticker_flag.store(false, Ordering::Relaxed);
+                    match res {
+                        Ok(()) => {
+                            let dt = t0.elapsed().as_secs_f64();
+                            let mbps = if dt > 0.0 {
+                                total / (1024.0 * 1024.0) / dt
+                            } else {
+                                0.0
+                            };
+                            let log = format!(
+                                "OK: {} | {:.2}s | {:.2} MiB/s",
+                                out_clone.display(),
+                                dt,
+                                mbps
+                            );
+                            let _ = tx.send(UiMessage::Done { log });
                         }
-                    });
+                        Err(e) => {
+                            let _ = tx.send(UiMessage::Error { err: e.to_string() });
+                        }
+                    }
+                });
             }
         });
     }
@@ -986,9 +1002,14 @@ impl F2PngApp {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Modo container:");
                 ui.label(format!("Entrada: {}", fmt_size(total_in)));
-                ui.label(format!("PNG est: ~{}", fmt_size(total_in.saturating_add(overhead))));
+                ui.label(format!(
+                    "PNG est: ~{}",
+                    fmt_size(total_in.saturating_add(overhead))
+                ));
             });
-            ui.label("Não precisa de capa grande; a imagem é só “capa” e os dados vão anexados ao PNG.");
+            ui.label(
+                "Não precisa de capa grande; a imagem é só “capa” e os dados vão anexados ao PNG.",
+            );
             return;
         }
 
@@ -1061,7 +1082,9 @@ impl F2PngApp {
     fn ui_help(&mut self, ui: &mut egui::Ui) {
         section_frame(ui, "Ajuda", |ui| {
             ui.collapsing("Programa", |ui| {
-                ui.label("f2png converte ficheiros em dados escondidos em PNG via esteganografia LSB.");
+                ui.label(
+                    "f2png converte ficheiros em dados escondidos em PNG via esteganografia LSB.",
+                );
             });
             ui.collapsing("LSB", |ui| {
                 ui.label("Usa bits menos significativos dos canais R,G,B. Mais BPC = mais capacidade, mais ruído.");
@@ -1079,7 +1102,9 @@ impl F2PngApp {
                 ui.label("Se o payload não couber, aumenta a imagem mantendo proporção (filtro Triangle/bilinear).");
             });
             ui.collapsing("Swap-cover (CLI)", |ui| {
-                ui.label("Extrai payload de um stego e re-embed noutra capa sem os ficheiros originais.");
+                ui.label(
+                    "Extrai payload de um stego e re-embed noutra capa sem os ficheiros originais.",
+                );
             });
             ui.collapsing("Boas práticas", |ui| {
                 ui.label("Usa PNG ou formato sem compressão destrutiva; evita reencode; guarda o BPC usado; usa password para dados sensíveis.");
@@ -1090,7 +1115,10 @@ impl F2PngApp {
     fn ui_tests(&mut self, ui: &mut egui::Ui) {
         section_frame(ui, "Testes rápidos", |ui| {
             ui.label("Corre um roundtrip de 1 MiB e mede throughput (usa diretório temporário).");
-            if ui.add_enabled(!self.busy, egui::Button::new("Correr autoteste")).clicked() {
+            if ui
+                .add_enabled(!self.busy, egui::Button::new("Correr autoteste"))
+                .clicked()
+            {
                 self.busy = true;
                 self.progress_value = 0.0;
                 let (tx, rx) = mpsc::channel();
@@ -1103,11 +1131,16 @@ impl F2PngApp {
                     let stego = dir.join("stego.png");
                     let outdir = dir.join("out");
                     // cria capa 512x512
-                    let img = image::ImageBuffer::from_pixel(512, 512, image::Rgba([200, 200, 200, 255]));
+                    let img =
+                        image::ImageBuffer::from_pixel(512, 512, image::Rgba([200, 200, 200, 255]));
                     let _ = image::DynamicImage::ImageRgba8(img).save(&cover);
                     // ficheiro 1 MiB
                     let _ = std::fs::write(&infile, vec![7u8; 1024 * 1024]);
-                    let opts = EncryptOptions { password: None, bpc: 2, allow_upscale: true };
+                    let opts = EncryptOptions {
+                        password: None,
+                        bpc: 2,
+                        allow_upscale: true,
+                    };
                     let t0 = Instant::now();
                     let tx_embed = tx.clone();
                     let cb_embed: Arc<dyn Fn(ProgressUpdate) + Send + Sync> = Arc::new(move |p| {
@@ -1134,7 +1167,11 @@ impl F2PngApp {
                                     total += m.len() as f64;
                                 }
                             }
-                            let mbps = if dt > 0.0 { total / (1024.0 * 1024.0) / dt } else { 0.0 };
+                            let mbps = if dt > 0.0 {
+                                total / (1024.0 * 1024.0) / dt
+                            } else {
+                                0.0
+                            };
                             let log = format!(
                                 "TESTE OK: {} ficheiro(s), {:.2} MiB/s, tempo {:.2}s. Saída em {}",
                                 info.output_paths.len(),
@@ -1145,7 +1182,9 @@ impl F2PngApp {
                             let _ = tx.send(UiMessage::Done { log });
                         }
                         Err(e) => {
-                            let _ = tx.send(UiMessage::Error { err: format!("Teste falhou: {}", e) });
+                            let _ = tx.send(UiMessage::Error {
+                                err: format!("Teste falhou: {}", e),
+                            });
                         }
                     }
                 });
@@ -1154,7 +1193,10 @@ impl F2PngApp {
             ui.separator();
             ui.heading("Benchmark sintético");
             ui.label("Gera ficheiro de 16 MiB, embebe e reporta throughput.");
-            if ui.add_enabled(!self.busy, egui::Button::new("Correr benchmark 16 MiB")).clicked() {
+            if ui
+                .add_enabled(!self.busy, egui::Button::new("Correr benchmark 16 MiB"))
+                .clicked()
+            {
                 self.busy = true;
                 self.progress_value = 0.0;
                 let (tx, rx) = mpsc::channel();
@@ -1166,11 +1208,19 @@ impl F2PngApp {
                     let infile = dir.join("bench_input.bin");
                     let stego = dir.join("bench_output.png");
                     // capa 1024x1024
-                    let img = image::ImageBuffer::from_pixel(1024, 1024, image::Rgba([180, 180, 180, 255]));
+                    let img = image::ImageBuffer::from_pixel(
+                        1024,
+                        1024,
+                        image::Rgba([180, 180, 180, 255]),
+                    );
                     let _ = image::DynamicImage::ImageRgba8(img).save(&cover);
                     // ficheiro 16 MiB
                     let _ = std::fs::write(&infile, vec![0u8; 16 * 1024 * 1024]);
-                    let opts = EncryptOptions { password: None, bpc: 2, allow_upscale: true };
+                    let opts = EncryptOptions {
+                        password: None,
+                        bpc: 2,
+                        allow_upscale: true,
+                    };
                     let t0 = Instant::now();
                     let tx_progress = tx.clone();
                     let cb = Arc::new(move |p: ProgressUpdate| {
@@ -1184,15 +1234,25 @@ impl F2PngApp {
                         Ok(info) => {
                             let dt = t0.elapsed().as_secs_f64();
                             let size = 16.0 * 1024.0 * 1024.0;
-                            let mbps = if dt > 0.0 { size / (1024.0 * 1024.0) / dt } else { 0.0 };
+                            let mbps = if dt > 0.0 {
+                                size / (1024.0 * 1024.0) / dt
+                            } else {
+                                0.0
+                            };
                             let log = format!(
                                 "BENCH OK: 16 MiB → {} ({}x{}), {:.2} MiB/s, {:.2}s",
-                                stego.display(), info.out_width, info.out_height, mbps, dt
+                                stego.display(),
+                                info.out_width,
+                                info.out_height,
+                                mbps,
+                                dt
                             );
                             let _ = tx.send(UiMessage::Done { log });
                         }
                         Err(e) => {
-                            let _ = tx.send(UiMessage::Error { err: format!("Benchmark falhou: {}", e) });
+                            let _ = tx.send(UiMessage::Error {
+                                err: format!("Benchmark falhou: {}", e),
+                            });
                         }
                     }
                 });
@@ -1201,7 +1261,10 @@ impl F2PngApp {
             ui.separator();
             ui.heading("Tabela de estimativas");
             ui.label("Corre um benchmark de 16 MiB e gera tabela de tempos.");
-            if ui.add_enabled(!self.busy, egui::Button::new("Gerar tabela de estimativas")).clicked() {
+            if ui
+                .add_enabled(!self.busy, egui::Button::new("Gerar tabela de estimativas"))
+                .clicked()
+            {
                 self.busy = true;
                 self.progress_value = 0.0;
                 let (tx, rx) = mpsc::channel();
@@ -1213,12 +1276,20 @@ impl F2PngApp {
                     let infile = dir.join("bench_input.bin");
                     let stego = dir.join("bench_output.png");
                     // capa 1024x1024
-                    let img = image::ImageBuffer::from_pixel(1024, 1024, image::Rgba([180, 180, 180, 255]));
+                    let img = image::ImageBuffer::from_pixel(
+                        1024,
+                        1024,
+                        image::Rgba([180, 180, 180, 255]),
+                    );
                     let _ = image::DynamicImage::ImageRgba8(img).save(&cover);
                     // ficheiro 16 MiB
                     let size: u64 = 16 * 1024 * 1024;
                     let _ = std::fs::write(&infile, vec![0u8; size as usize]);
-                    let opts = EncryptOptions { password: None, bpc: 2, allow_upscale: true };
+                    let opts = EncryptOptions {
+                        password: None,
+                        bpc: 2,
+                        allow_upscale: true,
+                    };
                     let t0 = Instant::now();
                     let tx_progress = tx.clone();
                     let cb = Arc::new(move |p: ProgressUpdate| {
@@ -1231,7 +1302,11 @@ impl F2PngApp {
                     match res {
                         Ok(_info) => {
                             let dt = t0.elapsed().as_secs_f64();
-                            let mib_s = if dt > 0.0 { (size as f64) / (1024.0 * 1024.0) / dt } else { 0.0 };
+                            let mib_s = if dt > 0.0 {
+                                (size as f64) / (1024.0 * 1024.0) / dt
+                            } else {
+                                0.0
+                            };
                             let sizes = size_list();
                             let out_path = PathBuf::from("output/bench_estimates_gui.txt");
                             if let Some(parent) = out_path.parent() {
@@ -1265,7 +1340,9 @@ impl F2PngApp {
                             let _ = tx.send(UiMessage::Done { log });
                         }
                         Err(e) => {
-                            let _ = tx.send(UiMessage::Error { err: format!("Tabela/benchmark falhou: {}", e) });
+                            let _ = tx.send(UiMessage::Error {
+                                err: format!("Tabela/benchmark falhou: {}", e),
+                            });
                         }
                     }
                 });

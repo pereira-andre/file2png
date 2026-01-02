@@ -214,7 +214,9 @@ impl<R: Read> Read for StreamDecryptReader<R> {
         self.cipher_filled = 0;
 
         while self.cipher_filled < self.cipher_buf.len() {
-            let n = self.reader.read(&mut self.cipher_buf[self.cipher_filled..])?;
+            let n = self
+                .reader
+                .read(&mut self.cipher_buf[self.cipher_filled..])?;
             if n == 0 {
                 break;
             }

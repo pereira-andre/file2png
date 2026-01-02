@@ -10,3 +10,6 @@ egui = "0.24"
 rfd = "0.14"
 f2png-core = { path = "../f2png-core" }
 image.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["windef", "winuser"] }

@@ -38,7 +38,8 @@ use tempfile::NamedTempFile;
 
 pub use crate::container::{
     is_container_png, join_container_png_parts_to_file, split_container_png_to_parts,
-    unwrap_container_png_to_dir, wrap_single_file_container_png, wrap_single_file_container_png_parts,
+    unwrap_container_png_to_dir, wrap_single_file_container_png,
+    wrap_single_file_container_png_parts,
 };
 
 #[derive(Clone, Debug)]
@@ -211,7 +212,8 @@ fn decrypt_blob_to_payload(
 
     let copied = if header.encrypted {
         let pw = password.ok_or_else(|| anyhow::anyhow!("Password requerida"))?;
-        let mut decryptor = StreamDecryptReader::new(pw, &header.salt, &header.nonce, cipher_reader)?;
+        let mut decryptor =
+            StreamDecryptReader::new(pw, &header.salt, &header.nonce, cipher_reader)?;
         std::io::copy(&mut decryptor, &mut writer)?
     } else {
         let mut reader = BufReader::new(cipher_reader);
@@ -256,7 +258,11 @@ pub fn embed_single_file(
 
     let start = Instant::now();
     let prep_weight = 20.0f32;
-    let enc_weight = if opts.password.is_some() { 15.0f32 } else { 0.0f32 };
+    let enc_weight = if opts.password.is_some() {
+        15.0f32
+    } else {
+        0.0f32
+    };
     let save_weight = 2.0f32;
     let embed_weight = 100.0f32 - prep_weight - enc_weight - save_weight;
 
@@ -288,14 +294,13 @@ pub fn embed_single_file(
         }
     };
 
-    let PayloadFile { file, len } =
-        build_payload_single_streaming(input_file, {
-            if progress.is_some() {
-                Some(&prep_report as &dyn Fn(u64))
-            } else {
-                None
-            }
-        })?;
+    let PayloadFile { file, len } = build_payload_single_streaming(input_file, {
+        if progress.is_some() {
+            Some(&prep_report as &dyn Fn(u64))
+        } else {
+            None
+        }
+    })?;
 
     let enc_start = Instant::now();
     let enc_report = |done: u64| {
@@ -419,7 +424,11 @@ pub fn embed_multi(
 
     let start = Instant::now();
     let prep_weight = 20.0f32;
-    let enc_weight = if opts.password.is_some() { 15.0f32 } else { 0.0f32 };
+    let enc_weight = if opts.password.is_some() {
+        15.0f32
+    } else {
+        0.0f32
+    };
     let save_weight = 2.0f32;
     let embed_weight = 100.0f32 - prep_weight - enc_weight - save_weight;
 
@@ -455,14 +464,13 @@ pub fn embed_multi(
         }
     };
 
-    let PayloadFile { file, len } =
-        build_payload_multi_streaming(inputs, {
-            if progress.is_some() {
-                Some(&prep_report as &dyn Fn(u64))
-            } else {
-                None
-            }
-        })?;
+    let PayloadFile { file, len } = build_payload_multi_streaming(inputs, {
+        if progress.is_some() {
+            Some(&prep_report as &dyn Fn(u64))
+        } else {
+            None
+        }
+    })?;
 
     let enc_start = Instant::now();
     let enc_report = |done: u64| {
@@ -579,8 +587,7 @@ pub fn reveal_to_dir(
 
     let outputs = if header.encrypted {
         let pw = password.ok_or_else(|| anyhow::anyhow!("Password requerida"))?;
-        let decryptor =
-            StreamDecryptReader::new(&pw, &header.salt, &header.nonce, cipher_reader)?;
+        let decryptor = StreamDecryptReader::new(&pw, &header.salt, &header.nonce, cipher_reader)?;
         parse_payload_streaming(decryptor, output_dir)?
     } else {
         parse_payload_streaming(cipher_reader, output_dir)?
