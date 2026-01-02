@@ -505,13 +505,13 @@ impl F2PngApp {
                 let out = if self.container_mode && self.container_split {
                     out_dir_split.unwrap_or_else(|| {
                         self.files
-                            .get(0)
+                            .first()
                             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
                             .unwrap_or_else(|| PathBuf::from("."))
                     })
                 } else {
                     self.out.clone().unwrap_or_else(|| {
-                        let first = self.files.get(0).cloned().unwrap();
+                        let first = self.files.first().cloned().unwrap();
                         first.with_extension("stego.png")
                     })
                 };
@@ -528,10 +528,6 @@ impl F2PngApp {
                 let files = self.files.clone();
                 let out_clone = out.clone();
                 let container_mode = self.container_mode;
-                let container_split = container_split;
-                let container_limit_preset = container_limit_preset;
-                let container_limit_gib = container_limit_gib;
-                let container_max_mib = container_max_mib;
                 self.push_log(&format!(
                         "A iniciar embed: cover='{}', out='{}', ficheiros={}, bpc={}, password_set={}, allow_upscale={}, container_mode={}, split={}",
                         cover

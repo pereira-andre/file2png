@@ -1463,6 +1463,7 @@ dependencies = [
  "f2png-core",
  "image 0.25.9",
  "rfd",
+ "winapi",
 ]
 
 [[package]]

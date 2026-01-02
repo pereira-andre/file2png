@@ -149,7 +149,7 @@ fn extract_payload_to_temp(
     let mut header: Option<crate::format::Header> = None;
     let start = Instant::now();
 
-    while target_bytes.map_or(true, |t| bytes_written < t) {
+    while target_bytes.is_none_or(|t| bytes_written < t) {
         let byte = reader
             .next_byte()
             .ok_or_else(|| anyhow::anyhow!("Buffer extraído truncado."))?;

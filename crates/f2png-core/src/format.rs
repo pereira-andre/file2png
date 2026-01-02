@@ -53,7 +53,7 @@ pub fn parse_header(buf: &[u8]) -> Result<Header> {
     if buf.len() < HEADER_FIXED_LEN {
         anyhow::bail!("Buffer demasiado pequeno para header.");
     }
-    if &buf[0..4] != MAGIC_V2 {
+    if buf[0..4] != MAGIC_V2 {
         anyhow::bail!("Magic inválido (esperava F2L2).");
     }
     let version = buf[4];

@@ -128,7 +128,7 @@ pub fn embed_lsb_parallel(
     let mask: u8 = (1u8 << bpc) - 1;
     let total_bits = data.len_bytes() * 8;
     let bits_per_pixel = (bpc as usize) * CHANNELS_USED;
-    let pixels_needed = (total_bits + bits_per_pixel - 1) / bits_per_pixel;
+    let pixels_needed = total_bits.div_ceil(bits_per_pixel);
     let total_pixels = rgba.len() / RGBA_STRIDE;
     let pixels_to_touch = pixels_needed.min(total_pixels);
 
@@ -180,7 +180,7 @@ pub fn embed_lsb_parallel(
                     return;
                 }
                 let mut local_bits = 0usize;
-                for chan in 0..CHANNELS_USED {
+                for chan in px.iter_mut().take(CHANNELS_USED) {
                     if start_bit + local_bits >= total_bits {
                         break;
                     }
@@ -197,7 +197,7 @@ pub fn embed_lsb_parallel(
                         new_bits |= bit_val << b;
                         local_bits += 1;
                     }
-                    px[chan] = (px[chan] & !mask) | new_bits;
+                    *chan = (*chan & !mask) | new_bits;
                 }
 
                 *local_acc += local_bits;
@@ -335,7 +335,7 @@ impl BitStreamReader {
             self.byte_acc |= bit_val << self.bits_filled;
             self.bits_filled += 1;
             self.bit_in_channel += 1;
-            if self.bit_in_channel as u8 >= self.bpc {
+            if self.bit_in_channel >= self.bpc {
                 self.bit_in_channel = 0;
                 self.channel_idx += 1;
                 if self.channel_idx >= CHANNELS_USED {

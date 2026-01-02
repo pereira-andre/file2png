@@ -78,10 +78,7 @@ pub fn parse_payload(plaintext: &[u8], outdir: &Path) -> Result<Vec<PathBuf>> {
 }
 
 fn sanitize_filename(name: &str) -> String {
-    let name = name
-        .rsplit(|c| c == '/' || c == '\\')
-        .next()
-        .unwrap_or("restored.bin");
+    let name = name.rsplit(&['/', '\\']).next().unwrap_or("restored.bin");
     let name = name.trim_matches(['.', ' ']);
     let name = if name.is_empty() {
         "restored.bin"
@@ -194,7 +191,7 @@ pub fn build_payload_single_streaming(
     }
 
     let (tmp, mut writer) = create_temp_payload()?;
-    writer.write_all(&[b'S'])?;
+    writer.write_all(b"S")?;
     writer.write_all(&(name.len() as u16).to_be_bytes())?;
     writer.write_all(name.as_bytes())?;
     writer.write_all(&size.to_be_bytes())?;
@@ -240,7 +237,7 @@ pub fn build_payload_multi_streaming(
     on_copied: Option<&dyn Fn(u64)>,
 ) -> Result<PayloadFile> {
     let (tmp, mut writer) = create_temp_payload()?;
-    writer.write_all(&[b'M'])?;
+    writer.write_all(b"M")?;
     writer.write_all(&(inputs.len() as u32).to_be_bytes())?;
     let mut total = 1 + 4;
 

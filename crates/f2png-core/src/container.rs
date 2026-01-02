@@ -70,7 +70,7 @@ fn max_plain_len_for_limit(
     let mut lo = 0u64;
     let mut hi = available;
     while lo < hi {
-        let mid = (lo + hi + 1) / 2;
+        let mid = (lo + hi).div_ceil(2);
         if estimate_cipher_len_from_plain(mid, true) <= available {
             lo = mid;
         } else {
@@ -94,7 +94,7 @@ fn decode_container_payload(
 ) -> Result<()> {
     let start = Instant::now();
     file.seek(SeekFrom::Start(data_start))?;
-    let reader = file.take((data_end - data_start) as u64);
+    let reader = file.take(data_end - data_start);
     let mut buf_reader = BufReader::new(reader);
     let mut hasher = Sha256::new();
     let mut processed_plain = 0u64;
@@ -132,11 +132,11 @@ fn decode_container_payload(
             let plain = if filled == cipher_buf.len() {
                 decryptor
                     .decrypt_next(chunk)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+                    .map_err(|e| std::io::Error::other(e.to_string()))?
             } else {
                 let res = decryptor
                     .decrypt_last(chunk)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
                 writer.write_all(&res)?;
                 hasher.update(&res);
                 processed_plain += res.len() as u64;
@@ -324,7 +324,7 @@ fn read_footer(file: &mut File) -> Result<u64> {
     file.seek(SeekFrom::End(-(FOOTER_LEN as i64)))?;
     let mut buf = [0u8; FOOTER_LEN as usize];
     file.read_exact(&mut buf)?;
-    if &buf[0..4] != CONTAINER_FOOTER_MAGIC {
+    if buf[0..4] != CONTAINER_FOOTER_MAGIC {
         anyhow::bail!("Não é um container (footer magic ausente).");
     }
     if buf[4] != CONTAINER_VERSION {
@@ -632,7 +632,7 @@ pub fn unwrap_container_png_to_dir(
 
     let out_name = hdr
         .name
-        .rsplit(|c| c == '/' || c == '\\')
+        .rsplit(&['/', '\\'])
         .next()
         .unwrap_or("restored.bin");
     let mut out_path = outdir.to_path_buf();
@@ -703,7 +703,7 @@ pub fn wrap_single_file_container_png_parts(
     let encrypted = password.is_some();
     let salt_len = if encrypted {
         let salt = SaltString::generate(&mut OsRng);
-        salt.as_salt().as_ref().as_bytes().len()
+        salt.as_salt().as_ref().len()
     } else {
         0
     };
@@ -714,7 +714,7 @@ pub fn wrap_single_file_container_png_parts(
     let total_parts = if file_len == 0 {
         1
     } else {
-        (file_len + max_plain - 1) / max_plain
+        file_len.div_ceil(max_plain)
     };
     if total_parts > 9_999 {
         anyhow::bail!("Ficheiro demasiado grande para {} partes.", 9_999);
@@ -899,8 +899,6 @@ pub fn join_container_png_parts_to_file(
 
         let mut part_cb = cb.as_ref().map(|cb| {
             let cb = Arc::clone(cb);
-            let start = start;
-            let processed_base = processed_base;
             move |processed: u64, _total: u64, _elapsed: f64, _speed: f64, phase: ProgressPhase| {
                 let done = processed_base.saturating_add(processed);
                 let elapsed = start.elapsed().as_secs_f64();
