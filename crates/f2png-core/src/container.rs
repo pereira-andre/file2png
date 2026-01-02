@@ -760,9 +760,6 @@ pub fn wrap_single_file_container_png_parts(
 
         let part_cb: ProgressCb = cb.as_ref().map(|cb| {
             let cb = Arc::clone(cb);
-            let start = start;
-            let processed_base = processed_base;
-            let part_len = part_len;
             Arc::new(move |p: ProgressUpdate| {
                 let done = processed_base as f64 + (part_len as f64) * (p.percent as f64 / 100.0);
                 let elapsed = start.elapsed().as_secs_f64();

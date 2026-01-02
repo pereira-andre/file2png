@@ -231,17 +231,18 @@ impl<R: Read> Read for StreamDecryptReader<R> {
             if let Some(ref mut inner) = self.inner {
                 inner
                     .decrypt_next(chunk)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+                    .map_err(|e| std::io::Error::other(e.to_string()))?
             } else {
                 return Ok(0);
             }
         } else {
-            let inner = self.inner.take().ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::Other, "Decryptor finalizado")
-            })?;
+            let inner = self
+                .inner
+                .take()
+                .ok_or_else(|| std::io::Error::other("Decryptor finalizado"))?;
             let res = inner
                 .decrypt_last(chunk)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                .map_err(|e| std::io::Error::other(e.to_string()))?;
             self.finished = true;
             res
         };
