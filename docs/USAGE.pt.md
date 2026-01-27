@@ -61,6 +61,18 @@ cargo run -p f2png-cli -- container-embed cover.png ficheiro-grande.bin containe
 cargo run -p f2png-cli -- container-reveal container.png --password opcional --outdir out
 ```
 
+### Container com capa do primeiro frame (video)
+
+Requer `ffmpeg` instalado no sistema.
+
+```
+# 1 video (capa = primeiro frame)
+cargo run -p f2png-cli -- container-embed-video input/video.mp4 --outdir output --password opcional
+
+# varios videos numa pasta (gera 1 PNG por video)
+cargo run -p f2png-cli -- container-embed-video input --outdir output --password opcional
+```
+
 ### Container com partes (< limite)
 
 ```

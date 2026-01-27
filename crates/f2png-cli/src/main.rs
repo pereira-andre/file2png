@@ -13,7 +13,10 @@ use f2png_core::{
     wrap_single_file_container_png, wrap_single_file_container_png_parts, EncryptOptions,
 };
 use image::{ImageBuffer, Rgba};
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Instant;
 use tempfile::tempdir;
@@ -62,6 +65,71 @@ fn format_eta(secs: f64) -> String {
     } else {
         format!("{}s", seconds)
     }
+}
+
+const VIDEO_EXTS: &[&str] = &[
+    "mp4", "m4v", "mov", "mkv", "avi", "webm", "mpg", "mpeg", "wmv", "flv",
+];
+
+fn is_video_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|ext| VIDEO_EXTS.iter().any(|v| ext.eq_ignore_ascii_case(v)))
+        .unwrap_or(false)
+}
+
+fn output_path_for_video(input: &Path, outdir: Option<&Path>) -> PathBuf {
+    let stem = input.file_stem().unwrap_or_else(|| OsStr::new("output"));
+    let mut out = if let Some(dir) = outdir {
+        dir.to_path_buf()
+    } else {
+        input
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."))
+    };
+    out.push(stem);
+    out.set_extension("png");
+    out
+}
+
+fn extract_first_frame(ffmpeg: &Path, input: &Path, out_png: &Path) -> Result<()> {
+    let output = Command::new(ffmpeg)
+        .args(["-y", "-hide_banner", "-loglevel", "error", "-i"])
+        .arg(input)
+        .args(["-frames:v", "1"])
+        .arg(out_png)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Falha ao executar ffmpeg: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let msg = stderr.trim();
+        if msg.is_empty() {
+            anyhow::bail!("ffmpeg falhou a extrair o primeiro frame.");
+        }
+        anyhow::bail!("ffmpeg falhou a extrair o primeiro frame: {}", msg);
+    }
+    Ok(())
+}
+
+fn container_embed_video(
+    ffmpeg: &Path,
+    input: &Path,
+    out_png: &Path,
+    password: Option<&str>,
+) -> Result<()> {
+    if let Some(parent) = out_png.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    let tmp_dir = tempfile::tempdir()?;
+    let cover = tmp_dir.path().join("cover.png");
+    extract_first_frame(ffmpeg, input, &cover)?;
+    let cb = Arc::new(|p: ProgressUpdate| print_progress("CONT", &p));
+    wrap_single_file_container_png(Some(&cover), input, out_png, password, Some(cb))?;
+    Ok(())
 }
 
 fn print_progress(prefix: &str, p: &ProgressUpdate) {
@@ -148,6 +216,18 @@ enum Commands {
         outdir: Option<PathBuf>,
         #[arg(long)]
         password: Option<String>,
+    },
+    /// Container: usa o primeiro frame de um vídeo como capa (requer ffmpeg).
+    ContainerEmbedVideo {
+        input: PathBuf,
+        #[arg(long)]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        outdir: Option<PathBuf>,
+        #[arg(long)]
+        password: Option<String>,
+        #[arg(long)]
+        ffmpeg: Option<PathBuf>,
     },
     /// Container: separa um PNG container em várias partes.
     ContainerSplit {
@@ -530,6 +610,61 @@ fn main() -> Result<()> {
                 "[OK] 1 ficheiro extraído: {:?} | tempo {:.2}s | {:.2} MiB/s",
                 restored, dt, mbps
             );
+        }
+        Commands::ContainerEmbedVideo {
+            input,
+            out,
+            outdir,
+            password,
+            ffmpeg,
+        } => {
+            let ffmpeg = ffmpeg.unwrap_or_else(|| PathBuf::from("ffmpeg"));
+            let meta = fs::metadata(&input)?;
+            if meta.is_dir() {
+                if out.is_some() {
+                    anyhow::bail!("Para input em pasta, usa --outdir em vez de --out.");
+                }
+                let outdir =
+                    outdir.ok_or_else(|| anyhow::anyhow!("Indica --outdir quando input é pasta."))?;
+                fs::create_dir_all(&outdir)?;
+                let mut videos: Vec<PathBuf> = fs::read_dir(&input)?
+                    .filter_map(|e| e.ok().map(|e| e.path()))
+                    .filter(|p| p.is_file() && is_video_file(p))
+                    .collect();
+                videos.sort();
+                if videos.is_empty() {
+                    anyhow::bail!("Nenhum vídeo encontrado em {:?}.", input);
+                }
+                for video in videos {
+                    let outfile = output_path_for_video(&video, Some(&outdir));
+                    let t0 = Instant::now();
+                    container_embed_video(&ffmpeg, &video, &outfile, password.as_deref())?;
+                    let dt = t0.elapsed().as_secs_f64();
+                    println!("[OK] {:?} -> {:?} | tempo {:.2}s", video, outfile, dt);
+                }
+            } else {
+                if outdir.is_some() && out.is_some() {
+                    anyhow::bail!("Usa apenas --out OU --outdir.");
+                }
+                let outfile = if let Some(outfile) = out {
+                    outfile
+                } else {
+                    output_path_for_video(&input, outdir.as_deref())
+                };
+                let size = fs::metadata(&input)?.len() as f64;
+                let t0 = Instant::now();
+                container_embed_video(&ffmpeg, &input, &outfile, password.as_deref())?;
+                let dt = t0.elapsed().as_secs_f64();
+                let mbps = if dt > 0.0 {
+                    size / (1024.0 * 1024.0) / dt
+                } else {
+                    0.0
+                };
+                println!(
+                    "[OK] container em {:?} | tempo {:.2}s | {:.2} MiB/s",
+                    outfile, dt, mbps
+                );
+            }
         }
         Commands::ContainerSplit {
             stego,

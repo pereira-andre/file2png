@@ -1,11 +1,12 @@
 # f2png — Rust LSB Stego (CLI + GUI)
 
-[![CI](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml/badge.svg)](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml)
+[![CI](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pereira-andre/file2png/actions/workflows/ci.yml)
 
 Rust workspace que substitui a versao Python original, com foco em performance, cifra moderna e app nativa.
 
 - Docs PT: `docs/USAGE.pt.md`
 - Docs EN: `docs/USAGE.en.md`
+- Guia rapido (CLI): `CLI_QUICKSTART.txt`
 
 ## Estrutura
 
@@ -23,6 +24,7 @@ cargo run -p f2png-cli -- --help
 cargo run -p f2png-cli -- embed cover.png ficheiro.bin stego.png --bpc 2 --password opcional
 cargo run -p f2png-cli -- reveal stego.png --bpc 2 --password opcional --outdir out
 cargo run -p f2png-cli -- container-embed cover.png ficheiro-grande.bin container.png --password opcional
+cargo run -p f2png-cli -- container-embed-video input/video.mp4 --outdir output --password opcional
 cargo run -p f2png-cli -- container-embed-split cover.png ficheiro-grande.bin outdir --max-gib 2 --password opcional
 cargo run -p f2png-cli -- container-reveal container.png --password opcional --outdir out
 cargo run -p f2png-cli -- container-split container.png cover.png outdir --max-gib 2 --password opcional
@@ -45,6 +47,7 @@ cargo run -p f2png-cli -- --help
 cargo run -p f2png-cli -- embed cover.png file.bin stego.png --bpc 2 --password optional
 cargo run -p f2png-cli -- reveal stego.png --bpc 2 --password optional --outdir out
 cargo run -p f2png-cli -- container-embed cover.png bigfile.bin container.png --password optional
+cargo run -p f2png-cli -- container-embed-video input/video.mp4 --outdir output --password optional
 cargo run -p f2png-cli -- container-embed-split cover.png bigfile.bin outdir --max-gib 2 --password optional
 cargo run -p f2png-cli -- container-reveal container.png --password optional --outdir out
 cargo run -p f2png-cli -- container-split container.png cover.png outdir --max-gib 2 --password optional

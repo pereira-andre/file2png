@@ -1,0 +1,41 @@
+f2png - guia rapido (CLI)
+
+Pre-requisitos:
+- Rust toolchain
+- ffmpeg instalado (apenas para videos em container-embed-video)
+
+Ajuda geral:
+  cargo run -p f2png-cli -- --help
+
+1) Ficheiro unico (LSB - para ficheiros pequenos/medios)
+  # esconder 1 ficheiro num PNG (usa capa)
+  cargo run -p f2png-cli -- embed cover.png ficheiro.bin stego.png --bpc 2 --password opcional
+
+  # revelar
+  cargo run -p f2png-cli -- reveal stego.png --bpc 2 --password opcional --outdir out
+
+2) Varios ficheiros (LSB - varios num PNG)
+  cargo run -p f2png-cli -- embed-multi cover.png stego.png f1.bin f2.bin --bpc 2 --password opcional
+  cargo run -p f2png-cli -- reveal stego.png --bpc 2 --password opcional --outdir out
+
+3) Ficheiro grande (Container - anexa ao PNG, nao usa LSB)
+  # criar container
+  cargo run -p f2png-cli -- container-embed cover.png ficheiro-grande.bin container.png --password opcional
+
+  # revelar container
+  cargo run -p f2png-cli -- container-reveal container.png --password opcional --outdir out
+
+4) Video (Container com capa = primeiro frame, 1 PNG por video)
+  # 1 video
+  cargo run -p f2png-cli -- container-embed-video input/video.mp4 --outdir output --password opcional
+
+  # varios videos numa pasta
+  cargo run -p f2png-cli -- container-embed-video input --outdir output --password opcional
+
+  # revelar (igual a qualquer container)
+  cargo run -p f2png-cli -- container-reveal output/video.png --password opcional --outdir out
+
+Notas rapidas:
+- --bpc controla qualidade/capacidade (1..=4). 2 e um bom default.
+- --allow-upscale permite aumentar a capa para caber o payload (LSB).
+- Para videos, podes definir binario ffmpeg: --ffmpeg /caminho/ffmpeg

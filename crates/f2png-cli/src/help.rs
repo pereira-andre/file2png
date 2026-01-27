@@ -36,6 +36,10 @@ Mais bits por canal = mais capacidade, mais ruído.",
         "boas-praticas",
         "Usa PNG ou formato sem compressão destrutiva; evita reencode para JPEG; guarda o BPC usado; usa password para dados sensíveis.",
     );
+    m.insert(
+        "video",
+        "container-embed-video usa o primeiro frame de um vídeo como capa e anexa o ficheiro inteiro ao PNG. Requer ffmpeg instalado.",
+    );
     m
 }
 
