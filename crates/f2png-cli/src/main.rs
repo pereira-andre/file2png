@@ -635,13 +635,35 @@ fn main() -> Result<()> {
                 if videos.is_empty() {
                     anyhow::bail!("Nenhum vídeo encontrado em {:?}.", input);
                 }
-                for video in videos {
+                let total_files = videos.len();
+                let total_bytes: u64 = videos
+                    .iter()
+                    .map(|p| fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+                    .sum();
+                let start_all = Instant::now();
+                println!(
+                    "[INFO] A converter {} vídeos (total {})...",
+                    total_files,
+                    fmt_size(total_bytes)
+                );
+                for (idx, video) in videos.iter().enumerate() {
                     let outfile = output_path_for_video(&video, Some(&outdir));
+                    let remaining = total_files.saturating_sub(idx + 1);
                     let t0 = Instant::now();
                     container_embed_video(&ffmpeg, &video, &outfile, password.as_deref())?;
                     let dt = t0.elapsed().as_secs_f64();
-                    println!("[OK] {:?} -> {:?} | tempo {:.2}s", video, outfile, dt);
+                    println!(
+                        "[OK] {:?} -> {:?} | tempo {:.2}s | faltam {}",
+                        video, outfile, dt, remaining
+                    );
                 }
+                let total_dt = start_all.elapsed().as_secs_f64();
+                println!(
+                    "[DONE] Conversão completa: {} vídeos | total {} | tempo {}",
+                    total_files,
+                    fmt_size(total_bytes),
+                    fmt_time(total_dt)
+                );
             } else {
                 if outdir.is_some() && out.is_some() {
                     anyhow::bail!("Usa apenas --out OU --outdir.");
@@ -651,7 +673,9 @@ fn main() -> Result<()> {
                 } else {
                     output_path_for_video(&input, outdir.as_deref())
                 };
-                let size = fs::metadata(&input)?.len() as f64;
+                let size_bytes = fs::metadata(&input)?.len();
+                let size = size_bytes as f64;
+                let start_all = Instant::now();
                 let t0 = Instant::now();
                 container_embed_video(&ffmpeg, &input, &outfile, password.as_deref())?;
                 let dt = t0.elapsed().as_secs_f64();
@@ -663,6 +687,12 @@ fn main() -> Result<()> {
                 println!(
                     "[OK] container em {:?} | tempo {:.2}s | {:.2} MiB/s",
                     outfile, dt, mbps
+                );
+                let total_dt = start_all.elapsed().as_secs_f64();
+                println!(
+                    "[DONE] Conversão completa: 1 vídeo | total {} | tempo {}",
+                    fmt_size(size_bytes),
+                    fmt_time(total_dt)
                 );
             }
         }
