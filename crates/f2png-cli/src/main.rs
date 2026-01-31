@@ -649,20 +649,28 @@ fn main() -> Result<()> {
                 for (idx, video) in videos.iter().enumerate() {
                     let outfile = output_path_for_video(&video, Some(&outdir));
                     let remaining = total_files.saturating_sub(idx + 1);
+                    let done = idx + 1;
+                    let pct = (done as f64) / (total_files as f64) * 100.0;
                     let t0 = Instant::now();
                     container_embed_video(&ffmpeg, &video, &outfile, password.as_deref())?;
                     let dt = t0.elapsed().as_secs_f64();
                     println!(
-                        "[OK] {:?} -> {:?} | tempo {:.2}s | faltam {}",
-                        video, outfile, dt, remaining
+                        "[OK] {:?} -> {:?} | tempo {:.2}s | progresso {}/{} ({:.1}%) | faltam {}",
+                        video, outfile, dt, done, total_files, pct, remaining
                     );
                 }
                 let total_dt = start_all.elapsed().as_secs_f64();
+                let avg_mib_s = if total_dt > 0.0 {
+                    (total_bytes as f64) / (1024.0 * 1024.0) / total_dt
+                } else {
+                    0.0
+                };
                 println!(
-                    "[DONE] Conversão completa: {} vídeos | total {} | tempo {}",
+                    "[DONE] Conversão completa: {} vídeos | total {} | tempo {} | média {:.2} MiB/s",
                     total_files,
                     fmt_size(total_bytes),
-                    fmt_time(total_dt)
+                    fmt_time(total_dt),
+                    avg_mib_s
                 );
             } else {
                 if outdir.is_some() && out.is_some() {
@@ -689,10 +697,16 @@ fn main() -> Result<()> {
                     outfile, dt, mbps
                 );
                 let total_dt = start_all.elapsed().as_secs_f64();
+                let avg_mib_s = if total_dt > 0.0 {
+                    (size_bytes as f64) / (1024.0 * 1024.0) / total_dt
+                } else {
+                    0.0
+                };
                 println!(
-                    "[DONE] Conversão completa: 1 vídeo | total {} | tempo {}",
+                    "[DONE] Conversão completa: 1 vídeo | total {} | tempo {} | média {:.2} MiB/s",
                     fmt_size(size_bytes),
-                    fmt_time(total_dt)
+                    fmt_time(total_dt),
+                    avg_mib_s
                 );
             }
         }
