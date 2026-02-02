@@ -30,6 +30,7 @@ cargo run -p f2png-cli -- container-reveal container.png --password opcional --o
 cargo run -p f2png-cli -- container-split container.png cover.png outdir --max-gib 2 --password opcional
 cargo run -p f2png-cli -- container-join saida.bin outdir/*.png --password opcional
 ```
+Nota: `container-embed-video` requer `ffmpeg`. Para PNG -> vídeo, usa `container-reveal` (extrai o ficheiro original).
 
 GUI:
 ```
@@ -53,6 +54,7 @@ cargo run -p f2png-cli -- container-reveal container.png --password optional --o
 cargo run -p f2png-cli -- container-split container.png cover.png outdir --max-gib 2 --password optional
 cargo run -p f2png-cli -- container-join output.bin outdir/*.png --password optional
 ```
+Note: `container-embed-video` requires `ffmpeg`. For PNG -> video, use `container-reveal` (it extracts the original file).
 
 GUI:
 ```
