@@ -624,8 +624,8 @@ fn main() -> Result<()> {
                 if out.is_some() {
                     anyhow::bail!("Para input em pasta, usa --outdir em vez de --out.");
                 }
-                let outdir =
-                    outdir.ok_or_else(|| anyhow::anyhow!("Indica --outdir quando input é pasta."))?;
+                let outdir = outdir
+                    .ok_or_else(|| anyhow::anyhow!("Indica --outdir quando input é pasta."))?;
                 fs::create_dir_all(&outdir)?;
                 let mut videos: Vec<PathBuf> = fs::read_dir(&input)?
                     .filter_map(|e| e.ok().map(|e| e.path()))
